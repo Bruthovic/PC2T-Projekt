@@ -1,10 +1,11 @@
-import java.util.Arrays;
-import java.util.List;
-import java.util.Scanner;
+package orgProgramNewVersion;
+
+import java.sql.*;
+import java.util.*;
+
 
 public class Main 
 {
-
 	public static void main(String[] args) 
 	{
 		Scanner sc=new Scanner(System.in);
@@ -13,6 +14,12 @@ public class Main
 		String názov, Vypozicanie, Spec;
 		List<String> autori;
 		boolean run=true;
+		
+		DatabazaKnih.pripojit();
+       		DatabazaKnih.vytvorit_tabulku();
+        	DatabazaKnih.nacitat_tabulku();
+        	DatabazaKnih.nacitat_tabulku2();
+		
 		while(run)
 		{
 			System.out.println("Zvoľte požadovaný úkon:");
@@ -29,6 +36,7 @@ public class Main
 			System.out.println("11 --- Načítaj knihu zo suboru");
 			System.out.println("12 --- Ulož aktualnu databazu do SQL databazy");
 			System.out.println("13 --- Ukončenie programu a uloženei do SQL databazy");
+			System.out.println("14 --- Nacteni");
 
 			vyber = sc.nextInt();
 			switch (vyber)
@@ -128,8 +136,13 @@ public class Main
 				System.out.println("Dovidenia.");
 				run=false;
 				break;
+			case 14:
+				DatabazaKnih.vypis_knih(DatabazaKnih.nacitat_tabulku());
+				DatabazaKnih.vypis_knih2(DatabazaKnih.nacitat_tabulku2());
+				break;
 				}
 			}
+		DatabazaKnih.odpojit();
 					
 		}
 			
