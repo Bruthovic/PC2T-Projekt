@@ -1,36 +1,250 @@
-
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
+import java.io.*;
+import java.sql.*;
+import java.util.*;
 
 public class Databaza {
-    private Map<String, Kniha> prvkyDatabazy;
+	
+    private static Map<String, Kniha> prvkyDatabazy;
+    private static Connection conn;
+    
+    public static boolean pripojit() {
+        conn = null;
+        try {
+            conn = DriverManager.getConnection("jdbc:sqlite:kniznica.db");
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+            System.out.println("Wtf");
+            return false;
+        }
+        return true;
+    }
 
+    public static void odpojit() {
+        if (conn != null) {
+            try {
+                conn.close();
+            } catch (SQLException e) {
+                System.out.println(e.getMessage());
+            }
+        }
+    }
+
+    public static boolean vytvorit_tabulku() {
+        if (conn == null) return false;
+        try {
+        	Statement stmt = conn.createStatement();
+        	 String sql = "CREATE TABLE IF NOT EXISTS kniznica (nazov TEXT, autori TEXT, rok INTEGER, vypozicanie TEXT, zaner TEXT)";
+        	 stmt.execute(sql);
+            
+        	 String sqlSecondTable = "CREATE TABLE IF NOT EXISTS kniznicaUcebnic (nazov TEXT, autori TEXT, rok INTEGER, vypozicanie TEXT, rocnik TEXT)";
+        	 stmt.execute(sqlSecondTable);
+            
+            return true;
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+        return false;
+    }
+
+    public static ArrayList<String> nacitat_tabulku() {
+        ArrayList<String> myList = new ArrayList<>();
+        Map<String, List<String>> bookMap = new HashMap<>();
+        String sql = "SELECT nazov, autori, rok, vypozicanie, zaner FROM kniznica"; 
+        try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                String nazov = rs.getString("nazov");
+                String autori = rs.getString("autori");
+                int rok = rs.getInt("rok");
+                String vypozicanie = rs.getString("vypozicanie");
+                String zaner = rs.getString("zaner");
+
+                if (bookMap.containsKey(nazov)) {
+                 
+                    List<String> authors = bookMap.get(nazov);
+                    authors.addAll(Arrays.asList(autori.split(",")));
+                } else {
+                  
+                    bookMap.put(nazov, Arrays.asList(autori.split(",")));
+                }
+               
+                String autoriString = String.join(", ", bookMap.get(nazov));
+                String bookInfo = String.format("Nazov: %s, Autori: %s, Rok: %d, Vypozicanie: %s, Zaner: %s",
+                                                nazov, autoriString, rok, vypozicanie, zaner);
+                myList.add(bookInfo);
+            }
+            
+        } catch (SQLException e) {
+            System.out.println("Error reading books: " + e.getMessage());
+        }
+        
+        return myList;
+    }
+    
+    public static ArrayList<String> nacitat_tabulku2() {
+        ArrayList<String> myList2 = new ArrayList<>();
+        Map<String, List<String>> bookMap2 = new HashMap<>();
+        String sql = "SELECT nazov, autori, rok, vypozicanie, rocnik FROM kniznicaUcebnic"; 
+        try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                String nazov = rs.getString("nazov");
+                String autori = rs.getString("autori");
+                int rok = rs.getInt("rok");
+                String vypozicanie = rs.getString("vypozicanie");
+                String rocnik = rs.getString("rocnik");
+
+                if (bookMap2.containsKey(nazov)) {
+                    
+                    List<String> authors = bookMap2.get(nazov);
+                    authors.addAll(Arrays.asList(autori.split(",")));
+                } else {
+                    
+                    bookMap2.put(nazov, Arrays.asList(autori.split(",")));
+                }
+               
+                String autoriString = String.join(", ", bookMap2.get(nazov));
+                String bookInfo = String.format("Nazov: %s, Autori: %s, Rok: %d, Vypozicanie: %s, Rocnik: %s", nazov, autoriString, rok, vypozicanie, rocnik);
+                myList2.add(bookInfo);
+            }
+            
+        } catch (SQLException e) {
+            System.out.println("Error reading books: " + e.getMessage());
+        }        
+        return myList2;
+    }
+    
+    public static void vypis_knih(ArrayList<String> myList) {
+        System.out.println("Vypise vsechny knihy");
+        
+        for (String book : myList) {
+            System.out.println(book);                      
+        }
+        
+        int size = myList.size();
+        
+        for (int i = 0; i < size; i++) {
+            String bookInfo = myList.get(i);
+            String[] parts = bookInfo.split(", ");
+            String nazov = parts[0].substring(parts[0].indexOf(":") + 1).trim(); 
+            List<String> autori = new ArrayList<>();
+            
+            for (int j = 1; j < 5; j++) {
+                String part = parts[j].trim(); 
+                
+                
+                boolean isNumber = false;
+                for (char c : part.toCharArray()) {
+                    if (Character.isDigit(c)) {
+                        isNumber = true;
+                        break;
+                    }
+                }
+               if(isNumber) {
+            	   break;
+               }                                	   
+            	   autori.addAll(Arrays.asList(part.substring(part.indexOf(":") + 1).trim().split(", ")));               
+            }
+            int rok = Integer.parseInt(parts[parts.length - 3].substring(parts[parts.length - 3].indexOf(":") + 1).trim()); 
+            String vypozicanie = parts[parts.length - 2].substring(parts[parts.length - 2].indexOf(":") + 1).trim(); 
+            String zaner = parts[parts.length - 1].substring(parts[parts.length - 1].indexOf(":") + 1).trim();
+
+            prvkyDatabazy.put(nazov, new Román(nazov, autori, rok, vypozicanie, zaner));
+        }
+
+
+     
+    }
+    
+    public static void vypis_knih2(ArrayList<String> myList2) {
+        System.out.println("Vypise vsechny knihy");
+        for (String book : myList2) {
+            System.out.println(book);           
+        }
+        int size = myList2.size();
+        
+        for (int i = 0; i < size; i++) {
+            String bookInfo = myList2.get(i);
+            String[] parts = bookInfo.split(", ");
+
+            String nazov = parts[0].substring(parts[0].indexOf(":") + 1).trim(); 
+            List<String> autori = new ArrayList<>();
+            for (int j = 1; j < 5; j++) {
+                String part = parts[j].trim(); 
+                boolean isNumber = false;
+                for (char c : part.toCharArray()) {
+                    if (Character.isDigit(c)) {
+                        isNumber = true;
+                        break;
+                    }
+                }
+               if(isNumber) {
+            	   break;
+               }                          	   
+            	   autori.addAll(Arrays.asList(part.substring(part.indexOf(":") + 1).trim().split(", ")));
+               
+            }
+
+            int rok = Integer.parseInt(parts[parts.length - 3].substring(parts[parts.length - 3].indexOf(":") + 1).trim()); 
+            String vypozicanie = parts[parts.length - 2].substring(parts[parts.length - 2].indexOf(":") + 1).trim(); 
+            String rocnik = parts[parts.length - 1].substring(parts[parts.length - 1].indexOf(":") + 1).trim(); 
+
+            prvkyDatabazy.put(nazov, new Učebnica(nazov, autori, rok, vypozicanie, rocnik));
+        }
+
+
+     
+    }
+    
     public Databaza() 
     {
         prvkyDatabazy = new HashMap<>();
     }
     public boolean setRomán(String názov, List<String> autori, int rok, String vypozicanie, String žáner) 
     {
-        if (prvkyDatabazy.put(názov, new Román(názov, autori, rok, vypozicanie, žáner)) == null)
-            return true;
+        if (prvkyDatabazy.put(názov, new Román(názov, autori, rok, vypozicanie, žáner)) == null) {
+        	
+                String nazov = názov;
+                String zaner = žáner;
+
+                String sql = "INSERT INTO kniznica(nazov, autori, rok, vypozicanie, zaner) VALUES(?, ?, ?, ?, ?)";
+                try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                    pstmt.setString(1, nazov);
+                    pstmt.setString(2, String.join(",", autori));
+                    pstmt.setInt(3, rok);
+                    pstmt.setString(4, vypozicanie);
+                    pstmt.setString(5, zaner);
+                    pstmt.executeUpdate();
+                    System.out.println("Book added successfully.");
+                } catch (SQLException e) {
+                    System.out.println("Error adding book: " + e.getMessage());
+                }
+           
+        	return true;
+        }
         else
             return false;
     }
     
     public boolean setUcebnica(String názov, List<String> autori, int rok, String vypozicanie, String ročnik) 
     {
-        if (prvkyDatabazy.put(názov, new Učebnica(názov, autori, rok, vypozicanie, ročnik)) == null)
+        if (prvkyDatabazy.put(názov, new Učebnica(názov, autori, rok, vypozicanie, ročnik)) == null) {
+        	String nazov = názov;
+            String rocnik = ročnik;
+
+            String sql = "INSERT INTO kniznica(nazov, autori, rok, vypozicanie, zaner) VALUES(?, ?, ?, ?, ?)";
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setString(1, nazov);
+                pstmt.setString(2, String.join(",", autori));
+                pstmt.setInt(3, rok);
+                pstmt.setString(4, vypozicanie);
+                pstmt.setString(5, rocnik);
+                pstmt.executeUpdate();
+                System.out.println("Book added successfully.");
+            } catch (SQLException e) {
+                System.out.println("Error adding book: " + e.getMessage());
+            }
             return true;
+        }
+       
         else
             return false;
     }
